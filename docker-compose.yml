@@ -1,0 +1,37 @@
+services:
+  # PostgreSQL Database Service
+  db:
+    image: postgres # Use a specific version
+    container_name: hospital_middleware_db
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # These are typically set in the .env file, but shown here for clarity
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    ports:
+      # Expose PostgreSQL port only to the host's localhost for security,
+      # or remove if only accessed by other containers.
+      # Use a different host port if 5432 is already in use.
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persist database data
+    networks:
+      - hospital_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# Define Networks
+networks:
+  hospital_network:
+    driver: bridge # Default Docker network driver
+
+# Define Volumes
+volumes:
+  postgres_data: # Persists PostgreSQL data across container restarts
+  go_cache: # Persists downloaded Go modules (optional)
