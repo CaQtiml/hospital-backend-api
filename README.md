@@ -10,6 +10,8 @@ go get -u github.com/joho/godotenv
 
 go run cmd/server/main.go
 go test -v ./test/... > log.txt
+
+docker compose up --build -d
 ```
 
 ```
