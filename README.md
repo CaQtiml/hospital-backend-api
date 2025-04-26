@@ -2,6 +2,7 @@
 - edit PK of DB
 - Use API Versioning
 - Use LIKE when finding
+- .env is uploaded for convenience, but must not be normally done!!!
 ```
 go mod init hospital-middleware
 go get -u github.com/gin-gonic/gin
