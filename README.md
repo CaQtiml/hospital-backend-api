@@ -1,19 +1,158 @@
-- idempotency to unit test
-- edit PK of DB
-- Use API Versioning
-- Use LIKE when finding
-- .env is uploaded for convenience, but must not be normally done!!!
+# To test this application locally
+1. Use the following script as `.env` file
 ```
-go mod init hospital-middleware
-go get -u github.com/gin-gonic/gin
-go get -u github.com/joho/godotenv
+# Server Configuration (Port your local Go app will listen on)
+SERVER_PORT=8080
 
-go run cmd/server/main.go
-go test -v ./test/... > log.txt
+# Database Configuration (PostgreSQL running in Docker, accessed via localhost)
+DB_HOST=127.0.0.1
+DB_PORT=5433
+DB_USER=hospital_user
+DB_PASSWORD=a_very_strong_password
+DB_NAME=hospital_db
+DB_SSLMODE=disable
 
-docker compose up --build -d
+# JWT Configuration
+JWT_SECRET=your_super_secret_random_key_for_jwt
+JWT_EXPIRY_HOURS=72
+
+# Gin Mode
+GIN_MODE=debug
 ```
+2. Use the following script as `docker-compose.yml`
+```
+services:
+  # PostgreSQL Database Service
+  db:
+    image: postgres # Use a specific version
+    container_name: hospital_middleware_db
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # These are typically set in the .env file, but shown here for clarity
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    ports:
+      # Expose PostgreSQL port only to the host's localhost for security,
+      # or remove if only accessed by other containers.
+      # Use a different host port if 5432 is already in use.
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persist database data
+    networks:
+      - hospital_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+```
+3. Run `docker compose up -d`
+4. Run 
+    - `go run cmd/server/main.go` if you want to call the API, such as `http://localhost:8080/api/v1/staff/create`
+    - `go test -v ./test/... > log.txt` if you want to run all tests in the test folder. Please note that running the test command is idempotent. Data added to the database during the test is deleted in the end. You can clear a cache using `go clean -testcache`
 
+# To build the container
+1. Use the following script as `.env` file
+```
+DB_HOST=db
+DB_PORT=5432
+DB_USER=hospital_user
+DB_PASSWORD=a_very_strong_password
+DB_NAME=hospital_db
+DB_SSLMODE=disable
+
+# JWT Configuration
+JWT_SECRET=your_super_secret_random_key_for_jwt
+JWT_EXPIRY_HOURS=72
+
+# Server Configuration (Internal port the Go app listens on)
+SERVER_PORT=8080
+
+# Nginx Configuration (Port exposed on the host machine)
+NGINX_PORT=80
+```
+2. Use the following script as `docker-compose.yml`
+```
+services:
+  # PostgreSQL Database Service
+  db:
+    image: postgres # Use a specific version
+    container_name: hospital_middleware_db
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # These are typically set in the .env file, but shown here for clarity
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    ports:
+      # Expose PostgreSQL port only to the host's localhost for security,
+      # or remove if only accessed by other containers.
+      # Use a different host port if 5432 is already in use.
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persist database data
+    networks:
+      - hospital_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  go_app:
+    build:
+      context: . # Use the current directory as the build context
+      dockerfile: Dockerfile # Specify the Dockerfile name
+    container_name: hospital_middleware_go
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      # Expose the Go app's internal port
+      # Nginx will handle external traffic
+       - "127.0.0.1:8080:${SERVER_PORT:-8080}" # Map internal port to host localhost:8080
+    depends_on:
+      db:
+        condition: service_healthy # Wait for the DB to be healthy before starting
+    networks:
+      - hospital_network
+    volumes:
+      - go_cache:/go/pkg/mod
+
+  # Nginx Reverse Proxy Service
+  nginx:
+    image: nginx:1.27.5-alpine
+    container_name: hospital_middleware_nginx
+    restart: unless-stopped
+    ports:
+      # Map host port (from .env) to Nginx container port 80
+      - "${NGINX_PORT:-80}:80"
+    volumes:
+      # Mount the custom Nginx configuration
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro # Mount as read-only
+    depends_on:
+      - go_app # Nginx depends on the Go application being available
+    networks:
+      - hospital_network
+
+networks:
+  hospital_network:
+    driver: bridge # Default Docker network driver
+
+# Define Volumes
+volumes:
+  postgres_data: # Persists PostgreSQL data across container restarts
+  go_cache: # Persists downloaded Go modules (optional)
+```
+3. Run `docker compose up --build -d`
+4. Test API, such as call the API `http://localhost:80/api/v1/staff/create`
+
+# Mock Data for Patient Table
+Since the problem does not ask me to implement an endpoint for adding data to the patient table, I write a SQL script to manually add data to this table.
 ```
 DROP FUNCTION IF EXISTS random_date(DATE, DATE);
 
@@ -88,4 +227,10 @@ INSERT INTO patients (
     (1, 'HN0033', 'พงศกร', '', 'สุข', 'Pongsakorn', '', 'Suk', random_date('1982-07-01'::DATE, '2012-01-01'::DATE), '', 'ST345678', '0634567890', 'pongsakorn@example.com', 'M'),
     (1, 'HN0034', 'พิมพ์มาดา', 'งาม', 'ศรี', 'Pimmada', 'Ngam', 'Sri', random_date('1995-02-10'::DATE, '2025-01-01'::DATE), '', 'UV901234', '0645678901', 'pimmada.ngam@example.com', 'F'),
     (1, 'HN0035', 'ภัทร', '', 'กล้าหาญยิ่ง', 'Pat', '', 'Klaharnying', random_date('1968-09-25'::DATE, '1998-01-01'::DATE), '', 'WX567890', '0656789012', 'pat@example.com', 'M')
+```
+# Other useful commands
+```
+go mod init hospital-middleware
+go get -u github.com/gin-gonic/gin
+go get -u github.com/joho/godotenv
 ```

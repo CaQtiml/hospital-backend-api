@@ -4,14 +4,14 @@ import "time"
 
 type Patient struct {
 	ID           uint       `json:"id" gorm:"primaryKey"`
-	HospitalID   uint       `json:"hospital_id" gorm:"index"`
-	PatientHN    string     `json:"patient_hn" gorm:"uniqueIndex:idx_hospital_hn"`
-	FirstNameTH  string     `json:"first_name_th"`
+	HospitalID   uint       `json:"hospital_id" gorm:"index;not null"`
+	PatientHN    string     `json:"patient_hn" gorm:"uniqueIndex:idx_hospital_hn;not null"`
+	FirstNameTH  string     `json:"first_name_th" gorm:"not null"`
 	MiddleNameTH string     `json:"middle_name_th"`
-	LastNameTH   string     `json:"last_name_th"`
-	FirstNameEN  string     `json:"first_name_en"`
+	LastNameTH   string     `json:"last_name_th" gorm:"not null"`
+	FirstNameEN  string     `json:"first_name_en" gorm:"not null"`
 	MiddleNameEN string     `json:"middle_name_en"`
-	LastNameEN   string     `json:"last_name_en"`
+	LastNameEN   string     `json:"last_name_en" gorm:"not null"`
 	DateOfBirth  *time.Time `json:"date_of_birth"` // Use pointer to handle potential nulls if needed
 	NationalID   string     `json:"national_id" gorm:"index"`
 	PassportID   string     `json:"passport_id" gorm:"index"`
