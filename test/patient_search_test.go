@@ -371,3 +371,31 @@ func TestSearchPatientHandler_NotFoundWrongHospital(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, results, 0, "Expected zero results when searching from wrong hospital")
 }
+
+func TestSearchPatientHandler_NotFoundWrongHospital_ViceVersa(t *testing.T) {
+	// Test Description: Staff from Hospital A tries to search for a patient in Hospital B.
+
+	// 1. Seed Patient Data for Hospital B (ID 2)
+	testPatientInHospB := createTestPatient(2) // Belongs to Hospital B (ID 2)
+	testPatientInHospB.NationalID = "NIDONLYINHOSPB"
+	seedPatient(t, testPatientInHospB)
+
+	// 2. Get Token for Staff from Hospital A (ID 1 - Different Hospital)
+	tokenUsername := uniqueUsername("staff_hospA_wrong_search")
+	authToken := getAuthToken(t, tokenUsername, "password123", "Hospital A") // Staff from Hospital A
+	assert.NotEmpty(t, authToken)
+
+	// 3. Perform Search using Hospital A staff token for Hospital B patient's NID
+	query := url.Values{}
+	query.Add("national_id", testPatientInHospB.NationalID) // NID of patient in Hosp B
+	searchURL := "/api/v1/patient/search?" + query.Encode()
+
+	rr := performRequest(testRouter, "GET", searchURL, nil, authToken) // Uses helper from api_test.go
+	assert.Equal(t, http.StatusOK, rr.Code)                            // API should return OK status, just no results
+
+	// 4. Assertions - Expect empty results because staff is from wrong hospital
+	var results []models.Patient
+	err := json.Unmarshal(rr.Body.Bytes(), &results)
+	assert.NoError(t, err)
+	assert.Len(t, results, 0, "Expected zero results when staff from Hospital A searches for patient in Hospital B")
+}
