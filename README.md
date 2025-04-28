@@ -53,6 +53,7 @@ services:
 4. Run 
     - `go run cmd/server/main.go` if you want to call the API, such as `http://localhost:8080/api/v1/staff/create`
     - `go test -v ./test/... > log.txt` if you want to run all tests in the test folder. Please note that running the test command is idempotent. Data added to the database during the test is deleted in the end. You can clear a cache using `go clean -testcache`
+5. Do not forget to `docker compose down`
 
 # To build the container
 1. Use the following script as `.env` file
@@ -150,6 +151,7 @@ volumes:
 ```
 3. Run `docker compose up --build -d`
 4. Test API, such as call the API `http://localhost:80/api/v1/staff/create`
+5. Do not forget to `docker compose down`
 
 # Mock Data for Patient Table
 Since the problem does not ask me to implement an endpoint for adding data to the patient table, I write a SQL script to manually add data to this table.
