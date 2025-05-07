@@ -1,5 +1,7 @@
 Sivakorn Lerttripinyo Repository for Agnos Health's Backend Assignment
 
+Google Docs link: https://docs.google.com/document/d/1mreoB4hfe5hWB2s9PK1W0hEeYiwqln_UqvuGTrLN4BQ/edit?usp=sharing
+
 # To test this application locally
 1. Use the following script as `.env` file
 ```
